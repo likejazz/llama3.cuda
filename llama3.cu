@@ -423,8 +423,8 @@ __global__ void multi_head_attention_kernel(int pos, int seq_len, float *sq, flo
 }
 void multi_head_attention(int pos, Config *p, RunState *s, int kv_dim, int kv_mul, int head_size, int loff) {
     multi_head_attention_kernel<<<p->n_heads, num_threads_large>>>(pos, p->max_seq_len, s->q, s->att, s->xb,
-                                                                   s->key_cache,
-                                                                   s->value_cache, kv_dim, kv_mul, head_size, loff);
+                                                                   s->key_cache, s->value_cache, kv_dim, kv_mul,
+                                                                   head_size, loff);
 }
 
 __global__ void f_silu_elementwise_mul_w3_kernel(float *shb, float *shb2, int hidden_dim) {
@@ -828,11 +828,11 @@ void generate(Transformer *transformer, Tokenizer *tokenizer, char *prompt, int 
     }
     printf("\n");
 
-    // report achieved tok/s (pos-1 because the timer starts after first iteration)
+    // report achieved tok/s (Token count is pos+1 because BOS token must be included)
     if (pos > 1) {
         long end = time_in_ms();
         fprintf(stderr, "Token count: %d, elapsed: %fs, %d tokens/s\n",
-                pos + 1, (float) (end - start) / 1000, (int) ((pos + 1) / (double) (end - start) * 1000));
+                pos + 1, (float) (end - start) / 1000, (int) (pos / (double) (end - start) * 1000));
     }
 
     free(prompt_tokens);

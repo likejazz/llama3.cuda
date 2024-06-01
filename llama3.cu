@@ -243,18 +243,18 @@ int divUp(int a, int b) {
     return (a - 1) / b + 1;
 }
 
-const int num_threads_lrg = 1024;
-const int num_threads_med = 256;
+const int num_threads_large = 1024;
+const int num_threads_small = 64;
 
 __global__ void rmsnorm_kernel(float *o, float *x, float *weight, int size, int elementsPerThread) {
     // parallel reduction of sum of squares via CUB
     float ss = 0.0f;
     for (int i = 0; i < elementsPerThread; i++) {
-        int j = threadIdx.x + i * num_threads_lrg;
+        int j = threadIdx.x + i * num_threads_large;
         if (j < size)
             ss += x[j] * x[j];
     }
-    using BlockReduce = cub::BlockReduce<float, num_threads_lrg>;
+    using BlockReduce = cub::BlockReduce<float, num_threads_large>;
     __shared__ typename BlockReduce::TempStorage temp;
     ss = BlockReduce(temp).Sum(ss);
 
@@ -271,15 +271,15 @@ __global__ void rmsnorm_kernel(float *o, float *x, float *weight, int size, int 
 
     // normalize and scale
     for (int i = 0; i < elementsPerThread; i++) {
-        int j = threadIdx.x + i * num_threads_lrg;
+        int j = threadIdx.x + i * num_threads_large;
         if (j < size) {
             o[j] = weight[j] * (ss * x[j]);
         }
     }
 }
 void rmsnorm(float *o, float *x, float *weight, int size) {
-    int elementsPerThread = divUp(size, num_threads_lrg);
-    rmsnorm_kernel <<<1, num_threads_lrg >>>(o, x, weight, size, elementsPerThread);
+    int elementsPerThread = divUp(size, num_threads_large);
+    rmsnorm_kernel<<<1, num_threads_large>>>(o, x, weight, size, elementsPerThread);
 }
 
 __device__ void softmax_gpu(float *__restrict__ x, int size) {
@@ -293,7 +293,7 @@ __device__ void softmax_gpu(float *__restrict__ x, int size) {
             max_val = x[i];
         }
     }
-    using BlockReduce = cub::BlockReduce<float, num_threads_lrg>;
+    using BlockReduce = cub::BlockReduce<float, num_threads_large>;
     __shared__ typename BlockReduce::TempStorage temp;
     __shared__ float shared_val;
     max_val = BlockReduce(temp).Reduce(max_val, cub::Max());
@@ -337,20 +337,21 @@ void matmul(float *xout, float *x, float *w, int n, int d) {
 }
 #else
 // naive CUDA kernel function to perform matrix multiplication.
+// one output per warp so that we can parallelize the dot product across the warp
+// Note that ~95% of total time is spent here, so optimizing this is important
 __global__ void matmul_kernel(float *xout, float *x, float *w, int n, int d) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i < d) {
-        float sum = 0.0f;
-        for (int j = 0; j < n; j++) {
-            sum += w[i * n + j] * x[j];
-        }
-        xout[i] = sum;
+    if (i >= d)
+        return;
+
+    float sum = 0.0f;
+    for (int j = 0; j < n; j++) {
+        sum += w[i * n + j] * x[j];
     }
+    xout[i] = sum;
 }
 void matmul(float *xout, float *x, float *w, int n, int d) {
-    int block_size = 256;
-    int grid_size = (d + block_size - 1) / block_size;
-    matmul_kernel<<<grid_size, block_size>>>(xout, x, w, n, d);
+    matmul_kernel<<<divUp(d, num_threads_small), num_threads_small>>>(xout, x, w, n, d);
 }
 #endif
 
@@ -372,7 +373,7 @@ __global__ void RoPe_rotation_kernel(int pos, float *sq, float *sk, int kv_dim, 
     }
 }
 void RoPe_rotation(int pos, RunState *s, int dim, int kv_dim, int head_size) {
-    RoPe_rotation_kernel <<<1, dim / 2 >>>(pos, s->q, s->k, kv_dim, head_size);
+    RoPe_rotation_kernel<<<1, dim / 2>>>(pos, s->q, s->k, kv_dim, head_size);
 }
 
 __global__ void multi_head_attention_kernel(int pos, int seq_len, float *sq, float *satt, float *sxb, float *key_cache,
@@ -421,9 +422,9 @@ __global__ void multi_head_attention_kernel(int pos, int seq_len, float *sq, flo
     }
 }
 void multi_head_attention(int pos, Config *p, RunState *s, int kv_dim, int kv_mul, int head_size, int loff) {
-    multi_head_attention_kernel <<<p->n_heads, num_threads_lrg>>>(pos, p->max_seq_len, s->q, s->att, s->xb,
-                                                                  s->key_cache,
-                                                                  s->value_cache, kv_dim, kv_mul, head_size, loff);
+    multi_head_attention_kernel<<<p->n_heads, num_threads_large>>>(pos, p->max_seq_len, s->q, s->att, s->xb,
+                                                                   s->key_cache,
+                                                                   s->value_cache, kv_dim, kv_mul, head_size, loff);
 }
 
 __global__ void f_silu_elementwise_mul_w3_kernel(float *shb, float *shb2, int hidden_dim) {
@@ -438,8 +439,8 @@ __global__ void f_silu_elementwise_mul_w3_kernel(float *shb, float *shb2, int hi
     }
 }
 void f_silu_elementwise_mul_w3(RunState *s, int hidden_dim) {
-    f_silu_elementwise_mul_w3_kernel<<<divUp(hidden_dim, num_threads_med), num_threads_med>>>(s->hb, s->hb2,
-                                                                                              hidden_dim);
+    f_silu_elementwise_mul_w3_kernel<<<divUp(hidden_dim, num_threads_small), num_threads_small>>>(s->hb, s->hb2,
+                                                                                                  hidden_dim);
 }
 
 __global__ void accum_kernel(float *a, float *b, int size) {
@@ -449,7 +450,7 @@ __global__ void accum_kernel(float *a, float *b, int size) {
     }
 }
 void accum(float *a, float *b, int size) {
-    accum_kernel<<<divUp(size, num_threads_med), num_threads_med>>>(a, b, size);
+    accum_kernel<<<divUp(size, num_threads_small), num_threads_small>>>(a, b, size);
 }
 
 float *forward(Transformer *transformer, int token, int pos) {
@@ -845,7 +846,7 @@ int main(int argc, char *argv[]) {
     char *checkpoint_path = (char *) "stories15M.bin";  // e.g. out/model.bin
     char *tokenizer_path = (char *) "tokenizer.bin";
     int max_new_tokens = 50;                            // number of max_new_tokens to run for
-    char *prompt = (char *) "I have a dream";           // prompt string
+    char *prompt = (char *) "I have a dream";           // poor man's prompt string
 
     // poor man's C argparse so we can override the defaults above from the command line
     if (argc >= 2) { prompt = argv[1]; }
@@ -854,7 +855,7 @@ int main(int argc, char *argv[]) {
     Transformer transformer;
     build_transformer(&transformer, checkpoint_path);
     if (max_new_tokens > transformer.config.max_seq_len)
-        max_new_tokens = transformer.config.max_seq_len; // ovrerride to ~max length
+        max_new_tokens = transformer.config.max_seq_len; // override to ~max length
 
     // build the Tokenizer via the tokenizer .bin file
     Tokenizer tokenizer;

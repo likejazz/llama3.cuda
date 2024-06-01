@@ -113,7 +113,6 @@ typedef struct {
 } Transformer;
 
 void malloc_run_state(RunState *s, Config *p) {
-    // we calloc instead of malloc to keep valgrind happy
     int kv_dim = (p->dim * p->n_kv_heads) / p->n_heads;
     CUDA_CHECK(cudaMalloc((void **) &s->x, p->dim * sizeof(float)));
     CUDA_CHECK(cudaMalloc((void **) &s->xb, p->dim * sizeof(float)));
@@ -125,9 +124,10 @@ void malloc_run_state(RunState *s, Config *p) {
     CUDA_CHECK(cudaMalloc((void **) &s->value_cache, p->n_layers * p->max_seq_len * kv_dim * sizeof(float)));
     CUDA_CHECK(cudaMalloc((void **) &s->att, p->n_heads * p->max_seq_len * sizeof(float)));
     CUDA_CHECK(cudaMalloc((void **) &s->logits_gpu, p->vocab_size * sizeof(float)));
+    // we calloc instead of malloc to keep valgrind happy
     s->logits = (float *) calloc(p->vocab_size, sizeof(float));
 
-    // ensure all mallocs went fine
+    // ensure all cudaMallocs went fine
     if (!s->x || !s->xb || !s->xb2 || !s->hb || !s->hb2 || !s->q
         || !s->key_cache || !s->value_cache || !s->att || !s->logits_gpu || !s->logits) {
         fprintf(stderr, "cudaMalloc failed!\n");

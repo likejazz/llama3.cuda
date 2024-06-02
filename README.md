@@ -1,7 +1,7 @@
 # llama3.cuda
 
 <p align="center">
-  <img src="/assets/275a62dc-28f4-42c3-ae02-2b1246d9f966.webp" width="300" alt="llama3.cuda">
+  <img src="/assets/llama3.cuda.webp" width="300" alt="llama3.cuda">
 </p>
 
 `llama3.cuda` is a pure C/CUDA implementation for Llama 3 model.

@@ -1,4 +1,4 @@
-NVCC = /usr/local/cuda/bin/nvcc
+NVCC = nvcc
 
 all: runcuda
 

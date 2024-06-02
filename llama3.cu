@@ -828,11 +828,11 @@ void generate(Transformer *transformer, Tokenizer *tokenizer, char *prompt, int 
     }
     printf("\n");
 
-    // report achieved tok/s (Token count is pos+1 because BOS token must be included)
+    // report achieved tok/s (Token count is assumed to be pos+1 because BOS token must be included)
     if (pos > 1) {
         long end = time_in_ms();
         fprintf(stderr, "Token count: %d, elapsed: %fs, %d tokens/s\n",
-                pos + 1, (float) (end - start) / 1000, (int) (pos / (double) (end - start) * 1000));
+                pos + 1, (float) (end - start) / 1000, (int) ((pos - 1) / (double) (end - start) * 1000));
     }
 
     free(prompt_tokens);

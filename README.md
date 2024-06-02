@@ -2,7 +2,7 @@
 
 `llama3.cuda` is a pure C/CUDA implementation for Llama 3 model.
 
-Following up on my previous implementation of the [Llama 3 model in pure NumPy](https://github.com/likejazz/llama3.np), this time I have implemented the[Llama 3 model in pure C/CUDA (This repository!)](https://github.com/likejazz/llama3.cuda).
+Following up on my previous implementation of the [Llama 3 model in pure NumPy](https://github.com/likejazz/llama3.np), this time I have implemented the [Llama 3 model in pure C/CUDA (This repository!)](https://github.com/likejazz/llama3.cuda).
 
 The Llama model implementation and UTF-8 tokenizer implementation were based on llama2.c previous implemented by [Andrej Karpathy](https://github.com/karpathy/llama2.c), while the CUDA code adopted the kernel implemented by [rogerallen](https://github.com/rogerallen/llama2.cu). It also heavily referenced the early CUDA kernel implemented by [ankan-ban](https://github.com/ankan-ban/llama2.cu).
 

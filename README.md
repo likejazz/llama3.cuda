@@ -2,7 +2,7 @@
 
 `llama3.cuda` is a pure C/CUDA implementation for Llama 3 model.
 
-Following on from my last implementation of the [Llama 3 model in pure NumPy](https://github.com/likejazz/llama3.np), this time I implemented the [Llama 3 model in pure C/CUDA (This repository)](https://github.com/likejazz/llama3.cuda).
+Following on from my last implementation of the [Llama 3 model in pure NumPy](https://github.com/likejazz/llama3.np), this time I implemented the [Llama 3 model in pure C/CUDA (This repository!)](https://github.com/likejazz/llama3.cuda).
 
 The Llama model implementation and UTF-8 tokenizer implementation were based on llama2.c previous implemented by [Andrej Karpathy](https://github.com/karpathy/llama2.c), while the CUDA code adopted the kernel implemented by [rogerallen](https://github.com/rogerallen/llama2.cu). It also heavily referenced the early CUDA kernel implemented by [ankan-ban](https://github.com/ankan-ban/llama2.cu).
 
@@ -16,7 +16,7 @@ Even including a lot of boilerplate code, such as UTF-8 byte sequence processing
 - Same result  
 To achieve exactly the same results as the [NumPy implementation](https://github.com/likejazz/llama3.np), I debugged the logit values manually to reduce the floating-point arithmetic error rate, and reduced error rate to less than 0.5%.
 - High performance  
-When the NumPy implementation on the M2 MacBook Air processed 33 tokens/s, while the CUDA version processed 2,823 tokens/s on a NVIDIA 4080 SUPER, which is about 85 times faster. This experiment really showed us why we should use GPU.
+When the [NumPy implementation](https://github.com/likejazz/llama3.np) on the M2 MacBook Air processed 33 tokens/s, while the CUDA version processed 2,823 tokens/s on a NVIDIA 4080 SUPER, which is about 85 times faster. This experiment really showed us why we should use GPU.
 
 ## Usage
 
@@ -32,7 +32,7 @@ Token count: 50, elapsed: 0.017000s, 2823 tokens/s
 
 ## Next steps
 
-I did some patches, including tokenizer, to ensure the same results as the NumPy version, and interestingly, I noticed that Andrej Karpathy commented in the tokenizer code "I don't have the energy to read more of the sentencepiece code to figure out what it's doing". I spent a lot of time trying to clean up this code, but unfortunately, I didn't get good results and had to do it as a messy monkey patch. I'll try again in the future with further refinements.
+I did some patches, including tokenizer, to ensure the same results as the [NumPy version](https://github.com/likejazz/llama3.np), and interestingly, I noticed that Andrej Karpathy commented in the tokenizer code "I don't have the energy to read more of the sentencepiece code to figure out what it's doing". I spent a lot of time fixing this code, but unfortunately, I didn't get good results and had to do it as a messy monkey patch. I'll try again in the future with further refinements.
 
 In the future, I will try to verify it on other platforms besides CUDA by using AMD's ROCm implementation and Intel's oneAPI implementation. Also, there is still an issue that Multi-Head Attention is handled by a single kernel, which has a similar effect to Flash Attention, but it is somewhat inefficient because it performs GEMV operations instead of GEMM operations. In the future, I plan to improve this and implement Flash Attention correctly.
 

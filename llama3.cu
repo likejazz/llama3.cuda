@@ -616,7 +616,23 @@ void safe_printf(char *piece) {
             return; // bad byte, don't print it
         }
     }
-    printf("%s", piece);
+
+    
+   int xff = 0xff;
+   unsigned char fbit = (piece[0] & xff);
+   unsigned char sbit = (piece[1] & xff);
+   unsigned char mask = 0x40;
+   unsigned char k = 0;
+
+    if (fbit == 0xC3) {
+        k = sbit | mask;
+        printf("%c", k );
+    } else if (fbit == 0xC2) {
+        printf("%c", sbit);
+    } else {
+        printf("%s", piece);
+    }
+
 }
 
 int str_lookup(char *str, TokenIndex *sorted_vocab, int vocab_size) {

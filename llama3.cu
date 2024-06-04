@@ -623,12 +623,16 @@ void safe_printf(char *piece) {
     unsigned char sbit = (piece[1] & xff);
     unsigned char mask = 0x40;
 
-    if (fbit == 0xC3) {
-        printf("%c", sbit | mask);
-    } else if (fbit == 0xC2) {
-        printf("%c", sbit);
-    } else {
-        printf("%s", piece);
+    switch (fbit) {
+        case 0xC3:
+            printf("%c", sbit | mask);
+            break;
+        case 0xC2:
+            printf("%c", sbit);
+            break;
+        default:
+            printf("%s", piece);
+            break;
     }
 }
 

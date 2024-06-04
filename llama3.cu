@@ -616,14 +616,25 @@ void safe_printf(char *piece) {
             return; // bad byte, don't print it
         }
     }
-    printf("%s", piece);
+
+    // add additional processing to handle CJK characters
+    int xff = 0xff;
+    unsigned char fbit = (piece[0] & xff);
+    unsigned char sbit = (piece[1] & xff);
+    unsigned char mask = 0x40;
+
+    if (fbit == 0xC3) {
+        printf("%c", sbit | mask);
+    } else if (fbit == 0xC2) {
+        printf("%c", sbit);
+    } else {
+        printf("%s", piece);
+    }
 }
 
 int str_lookup(char *str, TokenIndex *sorted_vocab, int vocab_size) {
     // efficiently find the perfect match for str in vocab, return its index or -1 if not found
-    // CUDA on Windows was not capable of handling the syntax below
-    TokenIndex tok;
-    tok.str = str;
+    TokenIndex tok = {.str = str}; // acts as the key to search for
     TokenIndex *res = (TokenIndex *) bsearch(&tok, sorted_vocab, vocab_size, sizeof(TokenIndex), compare_tokens);
     return res != NULL ? res->id : -1;
 }
